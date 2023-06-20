@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html;charset=gbk">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>ESP32-Vanwheel 车头灯配置</title>
+	<script src='/res?file=jquery-3.6.0.min.js'></script>
+	<!-- <script src='https://code.jquery.com/jquery-3.6.0.min.js'></script> -->
+	<style>
+
+		.popup-container {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			background-color: #fff;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, .3);
+			display: none;
+			z-index: 9999;
+		}
+		.popup-content {
+			padding: 10px;
+			text-align: center;
+			display:grid;
+			grid-template-areas:"div" "div" "div" "div";
+			align-items: center;
+			justify-items: center;
+		}
+		.popup-close-btn {
+			position: absolute;
+			top: -20px;
+			right: -20px;
+			font-size: 20px;
+			color: #666;
+			cursor: pointer;
+		}
+		
+		.toggle-switch input {
+		  display: none;
+		}
+
+		.toggle-switch label {
+		  display: block;
+		  position: relative;
+		  width: 48px;
+		  height: 24px;
+		  background-color: #ccc;
+		  border-radius: 12px;
+		  cursor: pointer;
+		}
+
+		.toggle-switch label:before {
+		  content: "";
+		  display: block;
+		  position: absolute;
+		  top: 2px;
+		  left: 2px;
+		  width: 20px;
+		  height: 20px;
+		  background-color: #fff;
+		  border-radius: 50%;
+		  transition: all 0.3s;
+		}
+
+		.toggle-switch input:checked + label {
+		  background-color: #33ff00;
+		}
+
+		.toggle-switch input:checked + label:before {
+		  left: calc(100% - 22px);
+		}
+
+		.round-button {
+			width: 30px;
+			height: 30px;
+			border-radius: 50%;
+			background-color: #2b12ea;
+			color: #fff;
+			font-size: 14px;
+			text-align: center;
+			line-height: 30px;
+			cursor: pointer;
+      	}
+
+	</style>
+</head>
+<body>
+
+	<H1>ESP32-Vanwheel 车头灯配置</H1>
+	<div style="display:flex;align-items:center;">
+		<div>
+				PinA灯珠数量：
+			</div>
+			<input id="rgbNum1" type="number" style="max-width:40px;display: inline-block;" onchange="rgbNumOnChanged(this)">
+		<div style="margin-left:10px;">
+				PinB灯珠数量：
+			</div>
+			<input id="rgbNum2" type="number" style="max-width:40px;display: inline-block;" onchange="rgbNumOnChanged(this)">
+	</div>
+	<div style="display:flex;align-items:center;">
+		<p style="display: inline-block;">RGB亮度：<span id="brightness-value"></span>%</p>
+		<input type="range" min="0" max="100" value="50" class="slider" id="brightness" style="display: inline-block;" onInput="rgbBrightnessOninput(this)">
+	</div>
+
+	<div style="display:flex;align-items:center;">
+		头尾反转：
+		<div class="toggle-switch" style="display: inline-block;">
+			<input type="checkbox" id="toggle3" onchange="rgbToggleOnChanged(this)">
+			<label for="toggle3"></label>
+		</div>
+	</div>
+
+	<div style="display:flex; align-items:center;margin-top:10px;">
+		<div>
+			车头颜色：
+		</div>
+		<span id="colorPreview1" style="border-radius:50%;display: inline-block; height: 30px; width: 30px; background:grey;" onClick="showPopup(this)"></span>
+		
+		<div style="margin-left:10px;">
+			开关：
+			</div>
+		<div class="toggle-switch" style="display: inline-block;">
+			<input type="checkbox" id="toggle1" onchange="rgbToggleOnChanged(this)">
+			<label for="toggle1"></label>
+		</div>
+		<div style="margin-left:10px;">
+			动画：<select id="headAnimSelect" onchange="handleSelectChange(this)"></select>
+		</div>
+	</div>
+
+	<div style="display:flex;align-items:center;margin-top:10px;">
+		<div>
+			车尾颜色：
+		</div>
+		<span id="colorPreview2" style="border-radius:50%;display: inline-block; height: 30px; width: 30px; background:grey;" onClick="showPopup(this)"></span>
+		
+		<div style="margin-left:10px;">
+			开关：
+		</div>
+		<div class="toggle-switch" style="display: inline-block;">
+			<input type="checkbox" id="toggle2" onchange="rgbToggleOnChanged(this)">
+			<label for="toggle2"></label>
+		</div>
+		<div style="margin-left:10px;">
+			动画：<select id="tailAnimSelect" onchange="handleSelectChange(this)"></select>
+		</div>
+	</div>
+
+	<div style="display:flex;align-items:center;margin-top:10px;">
+		<div>
+			动画速度：
+		</div>
+		<input type="number" id="animSpeed" value="0" readonly style="max-width:40px;" onchange="animSpeedOnChanged()">
+		<div class="round-button" onclick="decreaseAnimSpeed()" style="margin-left:10px;">-</div>
+    	<div class="round-button" onclick="increaseAnimSpeed()" style="margin-left:10px;">+</div>
+	</div>
+
+	<div style="display:flex;align-items:center;margin-top:10px;">
+		头尾灯按前进方向自动切换：
+		<div class="toggle-switch" style="display: inline-block;">
+			<input type="checkbox" id="toggle4" onchange="rgbToggleOnChanged(this)">
+			<label for="toggle4"></label>
+		</div>
+	</div>
+
+	<H2>余下场景一键切换功能敬请期待~~~</H2>
+	<p>白天/黑夜自动开启/关闭</p>
+	<p>通电但电机未启动时的待机显示</p>
+	<p>原地发呆（既不前进也不后退）</p>
+	<p>超过 速度阈值 或 快没电 或 倾角太大时</p>
+	<p>左/右转时板尾的方向提示</p>
+	<p>刹车提示</p>
+	
+	<H1>本体更新</H1>
+	<H2>ESP32固件更新（后端）</H2>
+	<div>
+		<form method='POST' action='#' enctype='multipart/form-data' id='updateFirm_form' style="display: inline-block;">
+		<input type='file' name='update'>
+		<input type='submit' value='上传'>
+		</form>
+		<div id='prg1' style="display: inline-block;">进度: 0%</div>
+	</div>
+	<H2>ESP32文件更新（前端）</H2>
+	<div>
+	    <form method='POST' action='#' enctype='multipart/form-data' id='updateFile_form' style="display: inline-block;">
+		<input type='file' name='update'>
+		<input type='submit' value='上传'>
+		</form>
+		<div id='prg2' style="display: inline-block;">进度: 0%</div>
+	</div>
+	<H2>lua脚本编写灯光效果</H2>
+	<p>暂无</p>
+
+	<!-- 悬浮窗 -->
+	<div class="popup-container" id="popup-container">
+		<div class="popup-content">
+			<div>
+				<canvas id="myCanvas"></canvas>
+			</div>
+
+			<div>
+				<canvas id="colorPicker"></canvas>
+			</div>
+
+			<div id="colorDisplay" style="width:100px;height:100px; border-radius:50%;"></div>
+
+			<div>
+				<div style="margin-top:5px;">
+					<label>R：</label>
+					<input id="rInput" type="number" min="0" max="255" oninput="onColorInputChanged()">
+				</div>
+				<div style="margin-top:5px;">
+					<label>G：</label>
+					<input id="gInput" type="number" min="0" max="255" oninput="onColorInputChanged()">
+				</div>
+				<div style="margin-top:5px;">
+					<label>B：</label>
+					<input id="bInput" type="number" min="0" max="255" oninput="onColorInputChanged()">
+				</div>
+				<button style="margin-top:5px; font-size: 18px; width: 100%;" onclick="fillColorValue()">确定</button>	
+			</div>
+
+		</div>
+		<button class="popup-close-btn" id="popup-close-btn" onClick="closePopup()">×</button>
+	</div>
+
+  <script>
+	var currSelColObj = null ;	
+	var ignoreChange=false;
+
+	function submitConfig(key,value) {
+		$.get("/updateConfig?" + encodeURIComponent(key)+ "=" + encodeURIComponent(value), function(data) {
+			console.log(data);
+		});
+	}
+
+	function decreaseAnimSpeed() {
+		var speed=$("#animSpeed").val();
+		speed=parseInt(speed)-1;
+		if(speed<0){
+			return;
+		}
+		$("#animSpeed").val(speed).trigger("change");
+	}
+      
+	function increaseAnimSpeed() {
+		var speed=$("#animSpeed").val();
+		speed=parseInt(speed)+1;
+		if(speed>10){
+			return;
+		}
+		$("#animSpeed").val(speed).trigger("change");
+	}
+
+	function animSpeedOnChanged(){
+		submitConfig("animSpeed",$("#animSpeed").val());
+	}
+
+	function handleSelectChange(obj){
+		if(ignoreChange) return;
+
+		if(obj.id==="headAnimSelect"){
+			submitConfig("headRGBAnim",obj.value);
+		}else if(obj.id==="tailAnimSelect"){
+			submitConfig("tailRGBAnim",obj.value);
+		}
+	}
+
+  	function updateColorInputs(r,g,b){
+		$("#rInput").val(r);
+		$("#gInput").val(g);
+		$("#bInput").val(b);
+	}
+
+	function getColorValue(){
+		var rValue = $("#rInput").val();
+		var gValue = $("#gInput").val();
+		var bValue = $("#bInput").val();
+
+		var r = parseInt(rValue);
+		var g = parseInt(gValue);
+		var b = parseInt(bValue);
+
+		return [r,g,b];
+	}
+
+	function onColorInputChanged(){
+		var colorData=getColorValue();
+		var color = "rgb(" + colorData[0] + ", " + colorData[1] + ", " + colorData[2] + ")";
+		//console.log(getColorValue());
+		$("#colorDisplay").css("backgroundColor",color);
+	}
+
+	function showPopup(obj){
+		currSelColObj=obj;
+		$("#popup-container").css("display","block");
+	}
+
+	function colorData2HexStr(data){
+		return data[0].toString(16).padStart(2, '0')+
+		data[1].toString(16).padStart(2, '0')+
+		data[2].toString(16).padStart(2, '0');
+	}
+
+	function fillColorValue(){
+		var colorData=getColorValue();
+		var color = "rgb(" + colorData[0] + ", " + colorData[1] + ", " + colorData[2] + ")";
+		$(currSelColObj).css("backgroundColor",color);
+		$("#popup-container").css("display","none");
+		//console.log(colorData);
+		if(currSelColObj.id==="colorPreview1"){
+			submitConfig("headRGBSingleColor",""+colorData2HexStr(colorData));
+		}else if(currSelColObj.id==="colorPreview2"){
+			submitConfig("tailRGBSingleColor",""+colorData2HexStr(colorData));
+		}
+	}
+
+	function closePopup(){
+		$("#popup-container").css("display","none");
+	}
+
+	function rgbToggleOnChanged(obj){
+		if(obj.id==="toggle3"){
+			submitConfig("reverse",obj.checked?"1":"0");
+		}else if(obj.id==="toggle2"){
+			submitConfig("tailOnOff",obj.checked?"1":"0");
+		}else if(obj.id==="toggle1"){
+			submitConfig("headOnOff",obj.checked?"1":"0");
+		}else if(obj.id==="toggle4"){
+			submitConfig("autoHead",obj.checked?"1":"0");
+		}
+	}
+
+	function rgbNumOnChanged(obj){
+		if(obj.id==="rgbNum1"){
+			submitConfig("pinARGBNum",obj.value);
+		}else if(obj.id==="rgbNum2"){
+			submitConfig("pinBRGBNum",obj.value);
+		}
+	}
+	
+	let timerId;
+	function rgbBrightnessOninput(obj){
+		clearTimeout(timerId);
+
+		$("#brightness-value").html(obj.value);
+		timerId = setTimeout(function() {
+		// 滑条在使用过程中调用此函数的频率相当高，而调用多次
+		// 这个请求会加速eeprom的损耗，故在此添加定时器
+		$("#brightness-value").html(obj.value);
+			submitConfig("brightness", obj.value);
+		}, 500);
+	}
+
+	function sliceRGBStr(str){
+		var len = str.length;
+		var seg1 = str.slice(0, Math.floor(len / 3));
+		var seg2 = str.slice(Math.floor(len / 3), 2 * Math.floor(len / 3)); 
+		var seg3 = str.slice(2 * Math.floor(len / 3));
+		return [parseInt(seg1,16),parseInt(seg2,16),parseInt(seg3,16)];
+	}
+
+	function updateVescUartData(){
+		$.get("/getVescOutput", function(data) {
+			console.log(data);
+		});
+	}
+
+	$(function(){
+		// 获取 canvas 元素和颜色显示区域元素
+		var canvas = document.getElementById("myCanvas");
+		var ctx = canvas.getContext("2d");
+		var colorDisplay = document.getElementById("colorDisplay");
+		var color = "rgb(0, 0, 0)";
+		var canvas1 = document.getElementById("colorPicker");
+		var ctx1 = canvas1.getContext("2d");
+
+		// 创建渐变对象
+		var gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+
+		// 渐变起点和终点坐标
+		var xStart = canvas1.width;
+		var yStart = 0;
+		var xEnd = 0;
+		var yEnd = canvas1.height;
+
+		// 创建渐变对象
+		var gradient1 = ctx1.createLinearGradient(xStart, yStart, xEnd, yEnd);
+
+		// 添加渐变颜色
+		gradient.addColorStop(0, "red");
+		gradient.addColorStop(0.2, "orange");
+		gradient.addColorStop(0.4, "yellow");
+		gradient.addColorStop(0.6, "green");
+		gradient.addColorStop(0.8, "blue");
+		gradient.addColorStop(1, "purple");
+
+		// 使用渐变填充矩形
+		ctx.fillStyle = gradient;
+		ctx.fillRect(0, 0, canvas.width, canvas.height);
+		
+		// 设置渐变1颜色
+		gradient1.addColorStop(0, "black"); // 右上角的颜色，可以根据需要设置
+		gradient1.addColorStop(1, "rgb(255, 255, 255)"); // 左下角的颜色，三色都为0
+
+		// 填充渐变1区域
+		ctx1.fillStyle = gradient1;
+		ctx1.fillRect(0, 0, canvas1.width, canvas1.height);
+
+		// 添加点击事件监听器
+		canvas.addEventListener("click", function(event) {
+			// 获取 Canvas 元素在浏览器窗口中的位置
+			var rect = canvas.getBoundingClientRect();
+
+			// 计算相对于 Canvas 元素左上角的相对位置
+			var mouseX = event.clientX - rect.left;
+			var mouseY = event.clientY - rect.top;
+
+			// 获取点击位置的颜色数据
+			var imageData = ctx.getImageData(mouseX, mouseY, 1, 1);
+			var colorData = imageData.data;
+			color = "rgb(" + colorData[0] + ", " + colorData[1] + ", " + colorData[2] + ")";
+
+			// 设置颜色显示区域的背景色
+			colorDisplay.style.backgroundColor = color;
+			updateColorInputs(colorData[0],colorData[1],colorData[2]);
+
+			// 设置渐变1颜色
+			gradient1.addColorStop(0, color); // 右上角的颜色，可以根据需要设置
+
+			// 填充渐变1区域
+			ctx1.fillStyle = gradient1;
+			ctx1.fillRect(0, 0, canvas1.width, canvas1.height);
+
+		});
+
+		canvas1.addEventListener("click", function(event) {
+			// 获取 Canvas1 元素在浏览器窗口中的位置
+			var rect = canvas1.getBoundingClientRect();
+
+			// 计算相对于 Canvas1 元素左上角的相对位置
+			var mouseX = event.clientX - rect.left;
+			var mouseY = event.clientY - rect.top;
+
+			// 获取点击位置的颜色数据
+			var imageData = ctx1.getImageData(mouseX, mouseY, 1, 1);
+			var colorData = imageData.data;
+			var color = "rgb(" + colorData[0] + ", " + colorData[1] + ", " + colorData[2] + ")";
+
+			// 设置颜色显示区域的背景色
+			colorDisplay.style.backgroundColor = color;
+			updateColorInputs(colorData[0],colorData[1],colorData[2]);
+		});
+		
+		// 文件表单
+		$('form').submit(function(e){
+			e.preventDefault();
+			//console.log(e.target);
+			if(e.target.id==='updateFirm_form'){
+				var form = $('#updateFirm_form')[0];
+				var data = new FormData(form);
+				console.log(data);
+					 $.ajax({
+						url: '/updateFirmware',
+						type: 'POST',
+						data: data,
+						contentType: false,
+						processData:false,
+						xhr: function() {
+						var xhr = new window.XMLHttpRequest();
+						xhr.upload.addEventListener('progress', function(evt) {
+							if (evt.lengthComputable) {
+								var per = evt.loaded / evt.total;
+								$('#prg1').html('progress: ' + Math.round(per*100) + '%');
+							}
+						}, false);
+						return xhr;
+						},
+						success:function(d, s) {
+						console.log('success!')
+						},
+						error: function (a, b, c) {
+						}
+					});
+			}else{//updateFile_form
+				var form = $('#updateFile_form')[0];
+				var data = new FormData(form);
+				console.log(data);
+					 $.ajax({
+						url: '/updateFile',
+						type: 'POST',
+						data: data,
+						contentType: false,
+						processData: false,
+						xhr: function() {
+						var xhr = new window.XMLHttpRequest();
+						xhr.upload.addEventListener('progress', function(evt) {
+							if (evt.lengthComputable) {
+								var per = evt.loaded / evt.total;
+								$('#prg2').html('progress: ' + Math.round(per*100) + '%');
+							}
+						}, false);
+						return xhr;
+						},
+						success:function(d, s) {
+						console.log('success!')
+						},
+						error: function (a, b, c) {
+						}
+					});
+			}
+		});
+
+		// 控件值填充
+		$.ajax({
+			type:"post",
+			url: "/getConfig",
+			dataType: "json",
+			success: function(data){
+				var obj = data;
+				$("#brightness").val(parseInt(obj.brightness));
+				$("#brightness-value").html(obj.brightness);
+				if(obj.reverse==="1") {
+					$("#toggle3").prop("checked",true);
+				}else{
+					$("#toggle3").prop("checked",false);
+				}
+
+				if(obj.headOnOff==="1") {
+					$("#toggle1").prop("checked",true);
+				}else{
+					$("#toggle1").prop("checked",false);
+				}
+
+				if(obj.tailOnOff==="1") {
+					$("#toggle2").prop("checked",true);
+				}else{
+					$("#toggle2").prop("checked",false);
+				}
+				
+				var colorData=sliceRGBStr(obj.headRGBSingleColor);
+				var color = "rgb(" + colorData[0] + ", " + colorData[1] + ", " + colorData[2] + ")";
+				$("#colorPreview1").css("backgroundColor",color);
+
+				colorData=sliceRGBStr(obj.tailRGBSingleColor);
+				color = "rgb(" + colorData[0] + ", " + colorData[1] + ", " + colorData[2] + ")";
+				$("#colorPreview2").css("backgroundColor",color);
+
+				$("#rgbNum1").val(obj.pinARGBNum);
+				$("#rgbNum2").val(obj.pinBRGBNum);
+
+				if(obj.autoHead==="1") {
+					$("#toggle4").prop("checked",true);
+				}else{
+					$("#toggle4").prop("checked",false);
+				}
+
+				$("#animSpeed").val(obj.animSpeed);
+
+				var headAnim=obj.headRGBAnim;
+				var tailAnim=obj.tailRGBAnim;
+				ignoreChange=true;
+
+				$.ajax({
+					url: '/getAnimList',
+					type: 'get',
+					dataType: 'json',
+					success: function(data) {
+						var select = $('#headAnimSelect');
+						$.each(data, function(key, value) {
+							select.append('<option value="' + value.id + '">' + value.name + '</option>');
+						});
+						select.val(headAnim);
+
+						select=$('#tailAnimSelect');
+						$.each(data, function(key, value) {
+							select.append('<option value="' + value.id + '">' + value.name + '</option>');
+						});
+						select.val(tailAnim);
+						ignoreChange=false;
+					},
+					error: function(xhr, status, error) {
+						console.log(error);
+					}
+				});
+
+			},
+			error: function(xhr, status, error){
+				console.log(error);
+			}
+		});
+
+		
+
+		//setInterval(updateVescUartData,500);
+	});
+
+  </script>
+</body>
+</html>
