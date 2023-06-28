@@ -65,6 +65,7 @@ struct RGBConfig{
   char pinARGBNum;
   char pinBRGBNum;
   char autoHead;
+  char standbyShow;
 };
 struct TaskReqInfo{
   char *taskName;
@@ -189,6 +190,12 @@ void handleUpdateConfig(){
       start=0+offsetof(RGBConfig,animSpeed);
       EEPROM.put(start,rgbConfig.animSpeed);
     }
+    
+    if(!strcmp("standbyShow",buf)){
+      rgbConfig.standbyShow=server.arg(i).toInt();
+      start=0+offsetof(RGBConfig,standbyShow);
+      EEPROM.put(start,rgbConfig.standbyShow);
+    }
   }
   EEPROM.commit();
   server.send(200, "text/plain", "ok!");
@@ -238,6 +245,9 @@ void handleGetConfig(){
   
   sprintf(buf,"%d",rgbConfig.animSpeed);
   doc["animSpeed"]=String(buf);
+  
+  sprintf(buf,"%d",rgbConfig.standbyShow);
+  doc["standbyShow"]=String(buf);
 
   serializeJson(doc,jsonStr);
   server.sendHeader("Content-Type", "application/json");
@@ -332,6 +342,7 @@ void setup(void) {
     rgbConfig.pinARGBNum=5;
     rgbConfig.pinBRGBNum=5;
     rgbConfig.autoHead=0;
+    rgbConfig.standbyShow=0;
     EEPROM.put(0,rgbConfig);
     EEPROM.commit();
   }
@@ -585,6 +596,7 @@ void singleColorApp(TaskReqInfo req){
   }
 }
 
+//空，当你想清空灯带显示的时候运行此app
 void blankApp(TaskReqInfo req){
   ANIM_START
   while(ANIM_LOOP){
@@ -617,7 +629,6 @@ void doTask(TaskReqInfo req){
     }
     
     //app
-    
     req.withContext=CONTEXT_NONE;
     switch(*req.rgbAnim){
       case ANIM_OFF:
@@ -697,10 +708,10 @@ void task3(void *param){
         tmp[index-1]='\0';
         index = 0;
         if (sum != checksum) {
-          // the package is corrupted
+          //数据包错误
           continue;
         }
-        //checksum is correct ,do what you want todo
+        //数据包正确，处理想要做的事
         vescOutput=String(tmp);
         calVescOutput();
       }else if(inChar=='\0'){
@@ -766,7 +777,7 @@ void killAndCreateTask(int a,int b){
 
 /*
 在灯条还未指定任何职责时，清空灯条的显示，避免因为灯条信号线
-的干扰造成的异常显示
+的干扰造成的异常显示，在指定职责后
 */
 void clearLedsBeforeCheck(){
   if(task1Handle==NULL && task2Handle==NULL){
@@ -785,7 +796,7 @@ void loop(void) {
     }
     
     //以下代码计算当前处于哪种情景之下
-    if(abs(vescPitch)>10){
+    if(!rgbConfig.standbyShow && abs(vescPitch)>10){
       currContextualModel=CONTEXT_STANDBY;
     }else{
       currContextualModel=CONTEXT_NONE;
