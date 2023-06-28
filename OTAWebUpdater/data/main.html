@@ -3,7 +3,7 @@
 <head>
 	<meta http-equiv="content-type" content="text/html;charset=gbk">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>ESP32-Vanwheel ³µÍ·µÆÅäÖÃ</title>
+	<title>ESP32-Vanwheel è½¦å¤´ç¯é…ç½®</title>
 	<script src='/res?file=jquery-3.6.0.min.js'></script>
 	<!-- <script src='https://code.jquery.com/jquery-3.6.0.min.js'></script> -->
 	<style>
@@ -86,24 +86,24 @@
 </head>
 <body>
 
-	<H1>ESP32-Vanwheel ³µÍ·µÆÅäÖÃ</H1>
+	<H1>ESP32-Vanwheel è½¦å¤´ç¯é…ç½®</H1>
 	<div style="display:flex;align-items:center;">
 		<div>
-				PinAµÆÖéÊıÁ¿£º
+				PinAç¯ç æ•°é‡ï¼š
 			</div>
 			<input id="rgbNum1" type="number" style="max-width:40px;display: inline-block;" onchange="rgbNumOnChanged(this)">
 		<div style="margin-left:10px;">
-				PinBµÆÖéÊıÁ¿£º
+				PinBç¯ç æ•°é‡ï¼š
 			</div>
 			<input id="rgbNum2" type="number" style="max-width:40px;display: inline-block;" onchange="rgbNumOnChanged(this)">
 	</div>
 	<div style="display:flex;align-items:center;">
-		<p style="display: inline-block;">RGBÁÁ¶È£º<span id="brightness-value"></span>%</p>
+		<p style="display: inline-block;">RGBäº®åº¦ï¼š<span id="brightness-value"></span>%</p>
 		<input type="range" min="0" max="100" value="50" class="slider" id="brightness" style="display: inline-block;" onInput="rgbBrightnessOninput(this)">
 	</div>
 
 	<div style="display:flex;align-items:center;">
-		Í·Î²·´×ª£º
+		å¤´å°¾åè½¬ï¼š
 		<div class="toggle-switch" style="display: inline-block;">
 			<input type="checkbox" id="toggle3" onchange="rgbToggleOnChanged(this)">
 			<label for="toggle3"></label>
@@ -112,43 +112,43 @@
 
 	<div style="display:flex; align-items:center;margin-top:10px;">
 		<div>
-			³µÍ·ÑÕÉ«£º
+			è½¦å¤´é¢œè‰²ï¼š
 		</div>
 		<span id="colorPreview1" style="border-radius:50%;display: inline-block; height: 30px; width: 30px; background:grey;" onClick="showPopup(this)"></span>
 		
 		<div style="margin-left:10px;">
-			¿ª¹Ø£º
+			å¼€å…³ï¼š
 			</div>
 		<div class="toggle-switch" style="display: inline-block;">
 			<input type="checkbox" id="toggle1" onchange="rgbToggleOnChanged(this)">
 			<label for="toggle1"></label>
 		</div>
 		<div style="margin-left:10px;">
-			¶¯»­£º<select id="headAnimSelect" onchange="handleSelectChange(this)"></select>
+			åŠ¨ç”»ï¼š<select id="headAnimSelect" onchange="handleSelectChange(this)"></select>
 		</div>
 	</div>
 
 	<div style="display:flex;align-items:center;margin-top:10px;">
 		<div>
-			³µÎ²ÑÕÉ«£º
+			è½¦å°¾é¢œè‰²ï¼š
 		</div>
 		<span id="colorPreview2" style="border-radius:50%;display: inline-block; height: 30px; width: 30px; background:grey;" onClick="showPopup(this)"></span>
 		
 		<div style="margin-left:10px;">
-			¿ª¹Ø£º
+			å¼€å…³ï¼š
 		</div>
 		<div class="toggle-switch" style="display: inline-block;">
 			<input type="checkbox" id="toggle2" onchange="rgbToggleOnChanged(this)">
 			<label for="toggle2"></label>
 		</div>
 		<div style="margin-left:10px;">
-			¶¯»­£º<select id="tailAnimSelect" onchange="handleSelectChange(this)"></select>
+			åŠ¨ç”»ï¼š<select id="tailAnimSelect" onchange="handleSelectChange(this)"></select>
 		</div>
 	</div>
 
 	<div style="display:flex;align-items:center;margin-top:10px;">
 		<div>
-			¶¯»­ËÙ¶È£º
+			åŠ¨ç”»é€Ÿåº¦ï¼š
 		</div>
 		<input type="number" id="animSpeed" value="0" readonly style="max-width:40px;" onchange="animSpeedOnChanged()">
 		<div class="round-button" onclick="decreaseAnimSpeed()" style="margin-left:10px;">-</div>
@@ -156,42 +156,49 @@
 	</div>
 
 	<div style="display:flex;align-items:center;margin-top:10px;">
-		Í·Î²µÆ°´Ç°½ø·½Ïò×Ô¶¯ÇĞ»»£º
+		å¤´å°¾ç¯æŒ‰å‰è¿›æ–¹å‘è‡ªåŠ¨åˆ‡æ¢ï¼š
 		<div class="toggle-switch" style="display: inline-block;">
 			<input type="checkbox" id="toggle4" onchange="rgbToggleOnChanged(this)">
 			<label for="toggle4"></label>
 		</div>
 	</div>
 
-	<H2>ÓàÏÂ³¡¾°Ò»¼üÇĞ»»¹¦ÄÜ¾´ÇëÆÚ´ı~~~</H2>
-	<p>°×Ìì/ºÚÒ¹×Ô¶¯¿ªÆô/¹Ø±Õ</p>
-	<p>Í¨µçµ«µç»úÎ´Æô¶¯Ê±µÄ´ı»úÏÔÊ¾</p>
-	<p>Ô­µØ·¢´ô£¨¼È²»Ç°½øÒ²²»ºóÍË£©</p>
-	<p>³¬¹ı ËÙ¶ÈãĞÖµ »ò ¿ìÃ»µç »ò Çã½ÇÌ«´óÊ±</p>
-	<p>×ó/ÓÒ×ªÊ±°åÎ²µÄ·½ÏòÌáÊ¾</p>
-	<p>É²³µÌáÊ¾</p>
+	<div style="display:flex;align-items:center;margin-top:10px;">
+		å¾…æœºä¿æŒï¼š
+		<div class="toggle-switch" style="display: inline-block;">
+			<input type="checkbox" id="toggle5" onchange="rgbToggleOnChanged(this)">
+			<label for="toggle5"></label>
+		</div>
+	</div>
+
+	<H2>ä½™ä¸‹åœºæ™¯ä¸€é”®åˆ‡æ¢åŠŸèƒ½æ•¬è¯·æœŸå¾…~~~</H2>
+	<p>ç™½å¤©/é»‘å¤œè‡ªåŠ¨å¼€å¯/å…³é—­</p>
+	<p>åŸåœ°å‘å‘†ï¼ˆæ—¢ä¸å‰è¿›ä¹Ÿä¸åé€€ï¼‰</p>
+	<p>è¶…è¿‡ é€Ÿåº¦é˜ˆå€¼ æˆ– å¿«æ²¡ç”µ æˆ– å€¾è§’å¤ªå¤§æ—¶</p>
+	<p>å·¦/å³è½¬æ—¶æ¿å°¾çš„æ–¹å‘æç¤º</p>
+	<p>åˆ¹è½¦æç¤º</p>
 	
-	<H1>±¾Ìå¸üĞÂ</H1>
-	<H2>ESP32¹Ì¼ş¸üĞÂ£¨ºó¶Ë£©</H2>
+	<H1>æœ¬ä½“æ›´æ–°</H1>
+	<H2>ESP32å›ºä»¶æ›´æ–°ï¼ˆåç«¯ï¼‰</H2>
 	<div>
 		<form method='POST' action='#' enctype='multipart/form-data' id='updateFirm_form' style="display: inline-block;">
 		<input type='file' name='update'>
-		<input type='submit' value='ÉÏ´«'>
+		<input type='submit' value='ä¸Šä¼ '>
 		</form>
-		<div id='prg1' style="display: inline-block;">½ø¶È: 0%</div>
+		<div id='prg1' style="display: inline-block;">è¿›åº¦: 0%</div>
 	</div>
-	<H2>ESP32ÎÄ¼ş¸üĞÂ£¨Ç°¶Ë£©</H2>
+	<H2>ESP32æ–‡ä»¶æ›´æ–°ï¼ˆå‰ç«¯ï¼‰</H2>
 	<div>
 	    <form method='POST' action='#' enctype='multipart/form-data' id='updateFile_form' style="display: inline-block;">
 		<input type='file' name='update'>
-		<input type='submit' value='ÉÏ´«'>
+		<input type='submit' value='ä¸Šä¼ '>
 		</form>
-		<div id='prg2' style="display: inline-block;">½ø¶È: 0%</div>
+		<div id='prg2' style="display: inline-block;">è¿›åº¦: 0%</div>
 	</div>
-	<H2>lua½Å±¾±àĞ´µÆ¹âĞ§¹û</H2>
-	<p>ÔİÎŞ</p>
+	<H2>luaè„šæœ¬ç¼–å†™ç¯å…‰æ•ˆæœ</H2>
+	<p>æš‚æ— </p>
 
-	<!-- Ğü¸¡´° -->
+	<!-- æ‚¬æµ®çª— -->
 	<div class="popup-container" id="popup-container">
 		<div class="popup-content">
 			<div>
@@ -206,22 +213,22 @@
 
 			<div>
 				<div style="margin-top:5px;">
-					<label>R£º</label>
+					<label>Rï¼š</label>
 					<input id="rInput" type="number" min="0" max="255" oninput="onColorInputChanged()">
 				</div>
 				<div style="margin-top:5px;">
-					<label>G£º</label>
+					<label>Gï¼š</label>
 					<input id="gInput" type="number" min="0" max="255" oninput="onColorInputChanged()">
 				</div>
 				<div style="margin-top:5px;">
-					<label>B£º</label>
+					<label>Bï¼š</label>
 					<input id="bInput" type="number" min="0" max="255" oninput="onColorInputChanged()">
 				</div>
-				<button style="margin-top:5px; font-size: 18px; width: 100%;" onclick="fillColorValue()">È·¶¨</button>	
+				<button style="margin-top:5px; font-size: 18px; width: 100%;" onclick="fillColorValue()">ç¡®å®š</button>	
 			</div>
 
 		</div>
-		<button class="popup-close-btn" id="popup-close-btn" onClick="closePopup()">¡Á</button>
+		<button class="popup-close-btn" id="popup-close-btn" onClick="closePopup()">Ã—</button>
 	</div>
 
   <script>
@@ -293,9 +300,24 @@
 
 	function showPopup(obj){
 		currSelColObj=obj;
+		var tmp=$(currSelColObj).css("backgroundColor");
+		var match = tmp.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+		if (match) {
+			var r = parseInt(match[1], 10);
+			var g = parseInt(match[2], 10);
+			var b = parseInt(match[3], 10);
+			//console.log("R:", r, "G:", g, "B:", b);
+			updateColorInputs(r,g,b);
+			onColorInputChanged();
+		}
 		$("#popup-container").css("display","block");
 	}
 
+	/**
+	 *
+	 * r:255 g:255 b:255 -> ffffff 
+	 * 
+	 **/
 	function colorData2HexStr(data){
 		return data[0].toString(16).padStart(2, '0')+
 		data[1].toString(16).padStart(2, '0')+
@@ -328,6 +350,8 @@
 			submitConfig("headOnOff",obj.checked?"1":"0");
 		}else if(obj.id==="toggle4"){
 			submitConfig("autoHead",obj.checked?"1":"0");
+		}else if(obj.id==="toggle5"){
+			submitConfig("standbyShow",obj.checked?"1":"0");
 		}
 	}
 
@@ -345,13 +369,18 @@
 
 		$("#brightness-value").html(obj.value);
 		timerId = setTimeout(function() {
-		// »¬ÌõÔÚÊ¹ÓÃ¹ı³ÌÖĞµ÷ÓÃ´Ëº¯ÊıµÄÆµÂÊÏàµ±¸ß£¬¶øµ÷ÓÃ¶à´Î
-		// Õâ¸öÇëÇó»á¼ÓËÙeepromµÄËğºÄ£¬¹ÊÔÚ´ËÌí¼Ó¶¨Ê±Æ÷
+		// æ»‘æ¡åœ¨ä½¿ç”¨è¿‡ç¨‹ä¸­è°ƒç”¨æ­¤å‡½æ•°çš„é¢‘ç‡ç›¸å½“é«˜ï¼Œè€Œè°ƒç”¨å¤šæ¬¡
+		// è¿™ä¸ªè¯·æ±‚ä¼šåŠ é€Ÿeepromçš„æŸè€—ï¼Œæ•…åœ¨æ­¤æ·»åŠ å®šæ—¶å™¨
 		$("#brightness-value").html(obj.value);
 			submitConfig("brightness", obj.value);
 		}, 500);
 	}
 
+	/**
+	 *
+	 * ffffff  -> r:255 g:255 b:255
+	 * 
+	 **/
 	function sliceRGBStr(str){
 		var len = str.length;
 		var seg1 = str.slice(0, Math.floor(len / 3));
@@ -367,7 +396,7 @@
 	}
 
 	$(function(){
-		// »ñÈ¡ canvas ÔªËØºÍÑÕÉ«ÏÔÊ¾ÇøÓòÔªËØ
+		// è·å– canvas å…ƒç´ å’Œé¢œè‰²æ˜¾ç¤ºåŒºåŸŸå…ƒç´ 
 		var canvas = document.getElementById("myCanvas");
 		var ctx = canvas.getContext("2d");
 		var colorDisplay = document.getElementById("colorDisplay");
@@ -375,19 +404,19 @@
 		var canvas1 = document.getElementById("colorPicker");
 		var ctx1 = canvas1.getContext("2d");
 
-		// ´´½¨½¥±ä¶ÔÏó
+		// åˆ›å»ºæ¸å˜å¯¹è±¡
 		var gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
 
-		// ½¥±äÆğµãºÍÖÕµã×ø±ê
+		// æ¸å˜èµ·ç‚¹å’Œç»ˆç‚¹åæ ‡
 		var xStart = canvas1.width;
 		var yStart = 0;
 		var xEnd = 0;
 		var yEnd = canvas1.height;
 
-		// ´´½¨½¥±ä¶ÔÏó
+		// åˆ›å»ºæ¸å˜å¯¹è±¡
 		var gradient1 = ctx1.createLinearGradient(xStart, yStart, xEnd, yEnd);
 
-		// Ìí¼Ó½¥±äÑÕÉ«
+		// æ·»åŠ æ¸å˜é¢œè‰²
 		gradient.addColorStop(0, "red");
 		gradient.addColorStop(0.2, "orange");
 		gradient.addColorStop(0.4, "yellow");
@@ -395,64 +424,64 @@
 		gradient.addColorStop(0.8, "blue");
 		gradient.addColorStop(1, "purple");
 
-		// Ê¹ÓÃ½¥±äÌî³ä¾ØĞÎ
+		// ä½¿ç”¨æ¸å˜å¡«å……çŸ©å½¢
 		ctx.fillStyle = gradient;
 		ctx.fillRect(0, 0, canvas.width, canvas.height);
 		
-		// ÉèÖÃ½¥±ä1ÑÕÉ«
-		gradient1.addColorStop(0, "black"); // ÓÒÉÏ½ÇµÄÑÕÉ«£¬¿ÉÒÔ¸ù¾İĞèÒªÉèÖÃ
-		gradient1.addColorStop(1, "rgb(255, 255, 255)"); // ×óÏÂ½ÇµÄÑÕÉ«£¬ÈıÉ«¶¼Îª0
+		// è®¾ç½®æ¸å˜1é¢œè‰²
+		gradient1.addColorStop(0, "black"); // å³ä¸Šè§’çš„é¢œè‰²ï¼Œå¯ä»¥æ ¹æ®éœ€è¦è®¾ç½®
+		gradient1.addColorStop(1, "rgb(255, 255, 255)"); // å·¦ä¸‹è§’çš„é¢œè‰²ï¼Œä¸‰è‰²éƒ½ä¸º0
 
-		// Ìî³ä½¥±ä1ÇøÓò
+		// å¡«å……æ¸å˜1åŒºåŸŸ
 		ctx1.fillStyle = gradient1;
 		ctx1.fillRect(0, 0, canvas1.width, canvas1.height);
 
-		// Ìí¼Óµã»÷ÊÂ¼ş¼àÌıÆ÷
+		// æ·»åŠ ç‚¹å‡»äº‹ä»¶ç›‘å¬å™¨
 		canvas.addEventListener("click", function(event) {
-			// »ñÈ¡ Canvas ÔªËØÔÚä¯ÀÀÆ÷´°¿ÚÖĞµÄÎ»ÖÃ
+			// è·å– Canvas å…ƒç´ åœ¨æµè§ˆå™¨çª—å£ä¸­çš„ä½ç½®
 			var rect = canvas.getBoundingClientRect();
 
-			// ¼ÆËãÏà¶ÔÓÚ Canvas ÔªËØ×óÉÏ½ÇµÄÏà¶ÔÎ»ÖÃ
+			// è®¡ç®—ç›¸å¯¹äº Canvas å…ƒç´ å·¦ä¸Šè§’çš„ç›¸å¯¹ä½ç½®
 			var mouseX = event.clientX - rect.left;
 			var mouseY = event.clientY - rect.top;
 
-			// »ñÈ¡µã»÷Î»ÖÃµÄÑÕÉ«Êı¾İ
+			// è·å–ç‚¹å‡»ä½ç½®çš„é¢œè‰²æ•°æ®
 			var imageData = ctx.getImageData(mouseX, mouseY, 1, 1);
 			var colorData = imageData.data;
 			color = "rgb(" + colorData[0] + ", " + colorData[1] + ", " + colorData[2] + ")";
 
-			// ÉèÖÃÑÕÉ«ÏÔÊ¾ÇøÓòµÄ±³¾°É«
+			// è®¾ç½®é¢œè‰²æ˜¾ç¤ºåŒºåŸŸçš„èƒŒæ™¯è‰²
 			colorDisplay.style.backgroundColor = color;
 			updateColorInputs(colorData[0],colorData[1],colorData[2]);
 
-			// ÉèÖÃ½¥±ä1ÑÕÉ«
-			gradient1.addColorStop(0, color); // ÓÒÉÏ½ÇµÄÑÕÉ«£¬¿ÉÒÔ¸ù¾İĞèÒªÉèÖÃ
+			// è®¾ç½®æ¸å˜1é¢œè‰²
+			gradient1.addColorStop(0, color); // å³ä¸Šè§’çš„é¢œè‰²ï¼Œå¯ä»¥æ ¹æ®éœ€è¦è®¾ç½®
 
-			// Ìî³ä½¥±ä1ÇøÓò
+			// å¡«å……æ¸å˜1åŒºåŸŸ
 			ctx1.fillStyle = gradient1;
 			ctx1.fillRect(0, 0, canvas1.width, canvas1.height);
 
 		});
 
 		canvas1.addEventListener("click", function(event) {
-			// »ñÈ¡ Canvas1 ÔªËØÔÚä¯ÀÀÆ÷´°¿ÚÖĞµÄÎ»ÖÃ
+			// è·å– Canvas1 å…ƒç´ åœ¨æµè§ˆå™¨çª—å£ä¸­çš„ä½ç½®
 			var rect = canvas1.getBoundingClientRect();
 
-			// ¼ÆËãÏà¶ÔÓÚ Canvas1 ÔªËØ×óÉÏ½ÇµÄÏà¶ÔÎ»ÖÃ
+			// è®¡ç®—ç›¸å¯¹äº Canvas1 å…ƒç´ å·¦ä¸Šè§’çš„ç›¸å¯¹ä½ç½®
 			var mouseX = event.clientX - rect.left;
 			var mouseY = event.clientY - rect.top;
 
-			// »ñÈ¡µã»÷Î»ÖÃµÄÑÕÉ«Êı¾İ
+			// è·å–ç‚¹å‡»ä½ç½®çš„é¢œè‰²æ•°æ®
 			var imageData = ctx1.getImageData(mouseX, mouseY, 1, 1);
 			var colorData = imageData.data;
 			var color = "rgb(" + colorData[0] + ", " + colorData[1] + ", " + colorData[2] + ")";
 
-			// ÉèÖÃÑÕÉ«ÏÔÊ¾ÇøÓòµÄ±³¾°É«
+			// è®¾ç½®é¢œè‰²æ˜¾ç¤ºåŒºåŸŸçš„èƒŒæ™¯è‰²
 			colorDisplay.style.backgroundColor = color;
 			updateColorInputs(colorData[0],colorData[1],colorData[2]);
 		});
 		
-		// ÎÄ¼ş±íµ¥
+		// æ–‡ä»¶è¡¨å•
 		$('form').submit(function(e){
 			e.preventDefault();
 			//console.log(e.target);
@@ -511,7 +540,7 @@
 			}
 		});
 
-		// ¿Ø¼şÖµÌî³ä
+		// æ§ä»¶å€¼å¡«å……
 		$.ajax({
 			type:"post",
 			url: "/getConfig",
@@ -556,6 +585,12 @@
 				}
 
 				$("#animSpeed").val(obj.animSpeed);
+
+				if(obj.standbyShow==="1") {
+					$("#toggle5").prop("checked",true);
+				}else{
+					$("#toggle5").prop("checked",false);
+				}
 
 				var headAnim=obj.headRGBAnim;
 				var tailAnim=obj.tailRGBAnim;
