@@ -9,5 +9,6 @@
 提供了vesc lisp代码、灯控pcb、esp32 arduino代码
 
 <img src="1.png" width="500"/>
+<img src="3.png" width="500"/>
 
 <img src="2.png" width="500"/>
