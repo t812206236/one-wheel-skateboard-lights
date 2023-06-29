@@ -62,7 +62,7 @@
         (def data (array-create 50))
         (def pitch (ix (get-imu-rpy) 1))
         (def speed (get-speed))
-        (def current-raw (get-current))
+        ;(def current-raw (get-current))
         ;(define #yaw-rate (ix (get-imu-gyro) 2))
         ;(define #yaw (ix (get-imu-rpy) 2))
         (def dataList (list
