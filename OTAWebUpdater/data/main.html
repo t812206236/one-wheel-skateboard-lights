@@ -98,7 +98,7 @@
 			<input id="rgbNum2" type="number" style="max-width:40px;display: inline-block;" onchange="rgbNumOnChanged(this)">
 	</div>
 	<div style="display:flex;align-items:center;">
-		<p style="display: inline-block;">RGB亮度：<span id="brightness-value"></span>%</p>
+		<p style="display: inline-block;">全局LED亮度：<span id="brightness-value"></span>%</p>
 		<input type="range" min="0" max="100" value="50" class="slider" id="brightness" style="display: inline-block;" onInput="rgbBrightnessOninput(this)">
 	</div>
 
@@ -148,7 +148,7 @@
 
 	<div style="display:flex;align-items:center;margin-top:10px;">
 		<div>
-			动画速度：
+			全局动画速度：
 		</div>
 		<input type="number" id="animSpeed" value="0" readonly style="max-width:40px;" onchange="animSpeedOnChanged()">
 		<div class="round-button" onclick="decreaseAnimSpeed()" style="margin-left:10px;">-</div>
@@ -171,8 +171,7 @@
 		</div>
 	</div>
 
-	<H2>余下场景一键切换功能敬请期待~~~</H2>
-	<p>白天/黑夜自动开启/关闭</p>
+	<H2>余下场景一键切换功能敬请期待</H2>
 	<p>原地发呆（既不前进也不后退）</p>
 	<p>超过 速度阈值 或 快没电 或 倾角太大时</p>
 	<p>左/右转时板尾的方向提示</p>
