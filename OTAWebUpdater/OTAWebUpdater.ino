@@ -44,7 +44,10 @@ enum RGBAnim{
   ANIM_OFF=0,
   ANIM_LRSCAN2CENTER,
   ANIM_RAINBOW,
-  ANIM_BREATHING
+  ANIM_BREATHING,
+  ANIM_PINGPONG,
+  ANIM_CRYSTALGLASS,
+  ANIM_POLICELIGHT
 };
 enum contextualModel{
   CONTEXT_NONE=0,
@@ -100,8 +103,7 @@ char currContextualModel=CONTEXT_NONE;
 String logStr="";
 
 /*
- * atoi 将字符串数字转换为int型数字，比如"123" 为123
- * 类似的还有atof
+ * atoi 将字符串数字转换为int型数字，比如"123" 为123，类似的还有atof
  * sprintf 数字输出为字符串
  * sscanf 字符串输出为数字
  */
@@ -137,7 +139,7 @@ void handleUpdateConfig(){
     /*
      * 这个sscanf有问题，%02X的时候虽然是指定2个十六进制，但实际占位4个字节
      * 即使使用%2X的时候也是占位4个字节，网上说%hhX可以解决问题
-     * 但是试过了以后还是不行，实在是拗不过它，我服软了，用int存一个字节的数据
+     * 但是试过了以后还是不行，实在是拗不过它，我服软了，用int存两个字节的数据
      */
     if(!strcmp("headRGBSingleColor",buf)){
       server.arg(i).toCharArray(buf,20);
@@ -273,6 +275,18 @@ void handleGetAnimList(){
   JsonObject option4 = doc.createNestedObject();
   option4["id"] = ANIM_BREATHING;
   option4["name"] = "呼吸灯（基于底色）";
+  
+  JsonObject option5 = doc.createNestedObject();
+  option5["id"] = ANIM_PINGPONG;
+  option5["name"] = "乒乓（基于底色）";
+
+  JsonObject option6 = doc.createNestedObject();
+  option6["id"] = ANIM_CRYSTALGLASS;
+  option6["name"] = "晶格玻璃（基于底色）";
+
+  JsonObject option7 = doc.createNestedObject();
+  option7["id"] = ANIM_POLICELIGHT;
+  option7["name"] = "警闪（固定颜色、频率）";
   
   serializeJson(doc, jsonString);
   server.sendHeader("Content-Type", "application/json");
@@ -481,6 +495,162 @@ int task1Tmp;
 int task2Tmp; 
 char taskArray[2][2]={0,0,0,0};
 
+//警车闪烁
+//固定颜色、频率
+void policeLightApp(TaskReqInfo req){
+  ANIM_START
+  char delay1=50;
+  char delay2=250;
+  
+  while(ANIM_LOOP){
+    ANIM_SETBRIGHTNESS
+    if(*req.onOff){
+      //循环两次
+      for(char a=0;a<2;a++){
+        //左闪4次红
+        for(char b=0;b<4;b++){
+          for(char c=0;c<req.ledNum/2;c++){
+            req.leds[c] = CRGB::DarkRed;
+          }
+          FastLED.show();
+          vTaskDelay(delay1 / portTICK_PERIOD_MS);
+          for(char c=0;c<req.ledNum/2;c++){
+            req.leds[c] = CRGB::Black;
+          }
+          FastLED.show();
+          vTaskDelay(delay1 / portTICK_PERIOD_MS);
+        }
+        //右闪4次蓝
+        for(char b=0;b<4;b++){
+          for(char c=req.ledNum/2;c<req.ledNum;c++){
+            req.leds[c] = CRGB::Blue;
+          }
+          FastLED.show();
+          vTaskDelay(delay1 / portTICK_PERIOD_MS);
+          for(char c=req.ledNum/2;c<req.ledNum;c++){
+            req.leds[c] = CRGB::Black;
+          }
+          FastLED.show();
+          vTaskDelay(delay1 / portTICK_PERIOD_MS);
+        }
+      }
+      vTaskDelay(delay2 / portTICK_PERIOD_MS);
+      //一起闪8次
+      for(char a=0;a<8;a++){
+        for(int b=0;b<req.ledNum;b++){
+          if(b<req.ledNum/2){
+            req.leds[b] = CRGB::DarkRed;
+          }else{
+            req.leds[b] = CRGB::Blue;
+          }
+        }
+        FastLED.show();
+        vTaskDelay(delay2 / portTICK_PERIOD_MS);
+        for(int b=0;b<req.ledNum;b++){
+          req.leds[b] = CRGB::Black;
+        }
+        FastLED.show();
+        vTaskDelay(delay2 / portTICK_PERIOD_MS);
+      }
+    }else{
+      vTaskDelay(delay2 / portTICK_PERIOD_MS);
+    }
+  }
+}
+
+//晶格玻璃
+void crystalglassApp(TaskReqInfo req){
+  ANIM_START
+  char flag=0;
+  while(ANIM_LOOP){
+    for(int i=0;i<req.ledNum;i++){
+      if(*req.onOff){
+        if(!flag){
+          if(i%2==0){
+            req.leds[i].r=req.rgb[0];
+            req.leds[i].g=req.rgb[1];
+            req.leds[i].b=req.rgb[2];
+          }else{
+            req.leds[i] = CRGB::Black;
+          }
+        }else{
+          if(i%2!=0){
+            req.leds[i].r=req.rgb[0];
+            req.leds[i].g=req.rgb[1];
+            req.leds[i].b=req.rgb[2];
+          }else{
+            req.leds[i] = CRGB::Black;
+          }
+        }
+      }else{
+        req.leds[i] = CRGB::Black;
+      }
+    }
+    ANIM_SETBRIGHTNESS
+    FastLED.show();
+    ANIM_DELAY
+    flag=flag?0:1;
+  }
+}
+
+//乒乓，顾名思义，左边到右边，右边到左边
+void pingpongApp(TaskReqInfo req){
+  ANIM_START
+  char tailLen=8;
+  char flag=0;
+  int head=0;
+  int tail=0;
+  char ledNum=req.ledNum;
+  while(ANIM_LOOP){
+
+    //滑动头
+    if(head>=0 && head<ledNum){
+      if(*req.onOff){
+        req.leds[head].r=req.rgb[0];
+        req.leds[head].g=req.rgb[1];
+        req.leds[head].b=req.rgb[2];
+      }else{
+        req.leds[head] = CRGB::Black;
+      }
+    }
+
+    //滑动尾
+    if(abs(head-tail)>=tailLen){
+      req.leds[tail] = CRGB::Black;
+      if(!flag){
+        tail++;
+      }else{
+        tail--;
+      }
+    }
+    
+    ANIM_SETBRIGHTNESS
+    FastLED.show();
+    ANIM_DELAY
+    
+    if(!flag){
+      head++;
+    }else{
+      head--;
+    }
+
+    if(!flag){
+      if(tail>=ledNum){
+        tail=ledNum-1;
+        head=tail;
+        flag=1;
+      }
+    }else{
+      if(tail<0){
+        tail=0;
+        head=tail;
+        flag=0;
+      }
+    }
+    
+  }
+}
+
 //呼吸灯
 void breathingApp(TaskReqInfo req){
   ANIM_START
@@ -643,6 +813,15 @@ void doTask(TaskReqInfo req){
       case ANIM_BREATHING:
         breathingApp(req);
         break;
+      case ANIM_PINGPONG:
+        pingpongApp(req);
+        break;
+      case ANIM_CRYSTALGLASS:
+        crystalglassApp(req);
+        break;
+      case ANIM_POLICELIGHT:
+        policeLightApp(req);
+        break;
     }
 
     
@@ -779,7 +958,7 @@ void killAndCreateTask(int a,int b){
 在灯条还未指定任何职责时，清空灯条的显示，避免因为灯条信号线
 的干扰造成的异常显示，在指定职责后
 */
-void clearLedsBeforeCheck(){
+void clearLedsAfterCheck(){
   if(task1Handle==NULL && task2Handle==NULL){
     FastLED.clear();
     FastLED.show();
@@ -840,7 +1019,7 @@ void loop(void) {
         }
       }
     }
-    clearLedsBeforeCheck();
+    clearLedsAfterCheck();
   }
   server.handleClient();
   
