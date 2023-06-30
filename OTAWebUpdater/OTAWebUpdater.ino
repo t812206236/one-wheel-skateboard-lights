@@ -10,6 +10,7 @@
 #include <SoftwareSerial.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 
 
 #define LED1_GPIO 12
@@ -24,7 +25,8 @@
   
 #define ANIM_LOOP \
   (animBakup==*req.rgbAnim) \
-  && (currContextualModel==req.withContext)
+  && (currContextualModel==req.withContext) \
+  && ((*req.isDel)==0)
   
 #define ANIM_DELAY \
   animDelay=map(*req.animSpeed,0,10,15,100); \
@@ -40,15 +42,6 @@ SoftwareSerial vescSerial(UART_READ, UART_SEND);
 const char* ssid = "Vanwheel led config server";
 const char* password = "qwer7890";
 
-enum RGBAnim{
-  ANIM_OFF=0,
-  ANIM_LRSCAN2CENTER,
-  ANIM_RAINBOW,
-  ANIM_BREATHING,
-  ANIM_PINGPONG,
-  ANIM_CRYSTALGLASS,
-  ANIM_POLICELIGHT
-};
 enum contextualModel{
   CONTEXT_NONE=0,
   CONTEXT_BRAKE,
@@ -70,6 +63,9 @@ struct RGBConfig{
   char autoHead;
   char standbyShow;
 };
+
+RGBConfig rgbConfig;
+
 struct TaskReqInfo{
   char *taskName;
   CRGB *leds;
@@ -87,14 +83,58 @@ struct TaskReqInfo{
    * 场景变了，需要显示的内容就变了，所以需要退出循环
    */
   char withContext;
+  /**
+   * 删除任务时先置isDel为1，等待任务自己退出后置isExit为1
+   */
+  char* isDel;
+  char* isExit;
+};
+enum RGBAnim{
+  ANIM_OFF=0,
+  ANIM_LRSCAN2CENTER,
+  ANIM_RAINBOW,
+  ANIM_BREATHING,
+  ANIM_PINGPONG,
+  ANIM_CRYSTALGLASS,
+  ANIM_POLICELIGHT,
+  ANIM_RANDOMRAINBOW,
+  ANIM_SINWAVE1,
+  ANIM_SINWAVE2,
+  ANIM_SINWAVE3
+};
+
+void singleColorApp(TaskReqInfo req);
+void scanLeftAndRight2CenterApp(TaskReqInfo req);
+void rainbowStreamApp(TaskReqInfo req);
+void breathingApp(TaskReqInfo req);
+void pingpongApp(TaskReqInfo req);
+void crystalglassApp(TaskReqInfo req);
+void policeLightApp(TaskReqInfo req);
+void randomRainbowApp(TaskReqInfo req);
+void sinWave1(TaskReqInfo req);
+void sinWave2(TaskReqInfo req);
+void sinWave3(TaskReqInfo req);
+
+void (*animMapArray[])(TaskReqInfo)={
+  singleColorApp,
+  scanLeftAndRight2CenterApp,
+  rainbowStreamApp,
+  breathingApp,
+  pingpongApp,
+  crystalglassApp,
+  policeLightApp,
+  randomRainbowApp,
+  sinWave1,
+  sinWave2,
+  sinWave3
 };
 
 WebServer server(80);
 
-RGBConfig rgbConfig;
-
 CRGB *leds1;
 CRGB *leds2;
+SemaphoreHandle_t mutex1;
+SemaphoreHandle_t mutex2;
 
 String vescOutput="Nothing!";
 float vescPitch=0.0;
@@ -258,7 +298,7 @@ void handleGetConfig(){
 
 void handleGetAnimList(){
   String jsonString;
-  StaticJsonDocument<512> doc;
+  StaticJsonDocument<1024> doc;
   
   JsonObject option1 = doc.createNestedObject();
   option1["id"] = ANIM_OFF;
@@ -270,7 +310,7 @@ void handleGetAnimList(){
 
   JsonObject option3 = doc.createNestedObject();
   option3["id"] = ANIM_RAINBOW;
-  option3["name"] = "彩虹流";
+  option3["name"] = "彩虹流（固有颜色）";
 
   JsonObject option4 = doc.createNestedObject();
   option4["id"] = ANIM_BREATHING;
@@ -286,7 +326,23 @@ void handleGetAnimList(){
 
   JsonObject option7 = doc.createNestedObject();
   option7["id"] = ANIM_POLICELIGHT;
-  option7["name"] = "警闪（固定颜色、频率）";
+  option7["name"] = "警闪（固有颜色、频率）";
+
+  JsonObject option8 = doc.createNestedObject();
+  option8["id"] = ANIM_RANDOMRAINBOW;
+  option8["name"] = "随机彩虹（固有颜色）";
+
+  JsonObject option9 = doc.createNestedObject();
+  option9["id"] = ANIM_SINWAVE1;
+  option9["name"] = "双波叠加拖尾（固有颜色、频率）";
+
+  JsonObject option10 = doc.createNestedObject();
+  option10["id"] = ANIM_SINWAVE2;
+  option10["name"] = "双波叠加彩虹（固有颜色、频率）";
+
+  JsonObject option11 = doc.createNestedObject();
+  option11["id"] = ANIM_SINWAVE3;
+  option11["name"] = "三波交叉（固有颜色、频率）";
   
   serializeJson(doc, jsonString);
   server.sendHeader("Content-Type", "application/json");
@@ -484,16 +540,135 @@ void setup(void) {
 
   vescSerial.begin(57600);
   xTaskCreatePinnedToCore(task3, "task3",4096,NULL,1,NULL,1);//绑协处理器
+
+  mutex1 = xSemaphoreCreateMutex();
+  mutex2 = xSemaphoreCreateMutex();
 }
+
+
+struct TaskInit{
+  char taskId;
+  char duty;
+  char isDel;
+  char isExit;
+};
 
 unsigned long previousMillis = 0;
 const long interval = 500; 
 char times=0;
 TaskHandle_t task1Handle = NULL;
-TaskHandle_t task2Handle = NULL;
-int task1Tmp;
-int task2Tmp; 
+TaskHandle_t task2Handle = NULL; 
 char taskArray[2][2]={0,0,0,0};
+TaskInit task1Tmp;
+TaskInit task2Tmp;
+
+/**
+ * 循环模板
+ */
+
+
+/**
+ * 搞一个雨滴
+ * 随机落点
+ * 随机强度，强的涟漪大，亮度渐强渐弱
+ * 随机颜色
+ */
+
+
+void sinWave3(TaskReqInfo req){
+  ANIM_START
+  while(ANIM_LOOP){
+    uint16_t sinBeat   = beatsin16(30, 0, req.ledNum - 1, 0, 0);
+    uint16_t sinBeat2  = beatsin16(30, 0, req.ledNum - 1, 0, 21845);
+    uint16_t sinBeat3  = beatsin16(30, 0, req.ledNum - 1, 0, 43690);
+
+    if(*req.onOff){
+      req.leds[sinBeat]   = CRGB::Blue;
+      req.leds[sinBeat2]  = CRGB::Red;
+      req.leds[sinBeat3]  = CRGB::White;
+    }
+    FastLED.show();
+    fadeToBlackBy(req.leds, req.ledNum, 10);
+    vTaskDelay(5 / portTICK_PERIOD_MS);
+  }
+}
+
+void sinWave2(TaskReqInfo req){
+  ANIM_START
+  while(ANIM_LOOP){
+    uint16_t beatA = beatsin8(30, 0, 255);
+    uint16_t beatB = beatsin8(60, 0, 255);
+    if(*req.onOff){
+      fill_rainbow(req.leds, req.ledNum, (beatA+beatB)/2, 8);
+    }else{
+      fill_solid(req.leds,req.ledNum,CRGB::Black);
+    }
+    ANIM_SETBRIGHTNESS
+    FastLED.show();
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+  }
+}
+
+/**
+ * 固定频率
+ * 正弦遍历可以让动画更流畅、柔和，比等时间间隔的遍历更好
+ * 波形映射示意图如下
+ * https://github.com/FastLED/FastLED/wiki/FastLED-Wave-Functions
+ */
+void sinWave1(TaskReqInfo req){
+  ANIM_START
+  while(ANIM_LOOP){
+    uint8_t posBeat = beatsin8(30, 0, req.ledNum - 1, 0, 0);
+    uint8_t posBeat2 = beatsin8(60, 0, req.ledNum - 1, 0, 0);
+    uint8_t colBeat  = beatsin8(45, 0, 255, 0, 0);
+    if(*req.onOff){
+      /**
+       * 两个不同频率的正弦波叠加
+       * 相当于一个周期为2pi的和一个周期为pi的叠加
+       */
+      req.leds[(posBeat + posBeat2) / 2]  = CHSV(colBeat, 255, 255);
+    }
+    ANIM_SETBRIGHTNESS
+    FastLED.show();
+    fadeToBlackBy(req.leds, req.ledNum, 10);
+    vTaskDelay(5 / portTICK_PERIOD_MS);
+  }
+}
+
+//随机彩虹
+void randomRainbowApp(TaskReqInfo req){
+  ANIM_START
+  uint8_t   noiseData[req.ledNum];
+  CRGBPalette16 party = PartyColors_p;
+  uint8_t   octaveVal   = 2; //噪声的粗细
+  uint16_t  xVal        = 0;
+  int       scaleVal    = 50;//噪声的幅度
+  uint16_t  timeVal     = 0;
+  while(ANIM_LOOP){
+    timeVal = millis() / 4;
+    memset(noiseData, 0, req.ledNum);
+    /**
+     * 产生一个随时间变化而变化的随机数组
+     */
+    fill_raw_noise8(noiseData, req.ledNum, octaveVal, \
+      xVal, scaleVal, timeVal);
+    for (int i = 0; i < req.ledNum; i++) {
+      /**
+       * 通过随机数组挑选 调色盘中的颜色以及亮度
+       */
+      if(*req.onOff){
+        req.leds[i] = ColorFromPalette(party, noiseData[i], \
+          noiseData[req.ledNum - i - 1]);
+      }else{
+        req.leds[i] = CRGB::Black;
+      }
+      
+    }
+    ANIM_SETBRIGHTNESS
+    FastLED.show();
+    ANIM_DELAY
+  }
+}
 
 //警车闪烁
 //固定颜色、频率
@@ -780,7 +955,7 @@ void blankApp(TaskReqInfo req){
 }
 
 /*
-每一个灯光效果都要完成 当关闭时，亮度调整时 的动作
+每一个灯光效果都要完成 1）当关闭时 2）亮度调整时 的动作
 灯光效果不能死循环，需要有条件退出，这样才可以根据情景显示
 这样做的目的是，为了应对当板头板尾职责不变的时候，情景发生改变
 灯光效果要保持纯粹，即只做灯光效果，其他什么也不做
@@ -790,42 +965,47 @@ void doTask(TaskReqInfo req){
       req.rgb[0],req.rgb[1],req.rgb[2],*req.onOff);
 
   //app和场景的选择实现处
-  while(true){
-    //情景
-    if(currContextualModel==CONTEXT_STANDBY){
-      req.withContext=CONTEXT_STANDBY;
-      blankApp(req);
-      continue;
-    }
+  while((*req.isDel)==0){
+    *req.isExit=0;
+
+    /**
+     * 使用互斥避免因为另一个任务提前交替导致两个线程同时
+     * 对一个灯带进行操作进而产生无法预测的结果
+     */
+    SemaphoreHandle_t *mutexP;
     
-    //app
-    req.withContext=CONTEXT_NONE;
-    switch(*req.rgbAnim){
-      case ANIM_OFF:
-        singleColorApp(req);
-        break;
-      case ANIM_LRSCAN2CENTER:
-        scanLeftAndRight2CenterApp(req);
-        break;
-      case ANIM_RAINBOW:
-        rainbowStreamApp(req);
-        break;
-      case ANIM_BREATHING:
-        breathingApp(req);
-        break;
-      case ANIM_PINGPONG:
-        pingpongApp(req);
-        break;
-      case ANIM_CRYSTALGLASS:
-        crystalglassApp(req);
-        break;
-      case ANIM_POLICELIGHT:
-        policeLightApp(req);
-        break;
+    if(!strncmp(req.taskName,"task1",5)){
+      mutexP=&mutex1;
+    }else{
+      mutexP=&mutex2;
     }
 
+    if(xSemaphoreTake(*mutexP, portMAX_DELAY) == pdTRUE) {
+      //情景
+      if(currContextualModel==CONTEXT_STANDBY){
+        req.withContext=CONTEXT_STANDBY;
+        blankApp(req);
+        continue;
+      }
     
+      //app
+      req.withContext=CONTEXT_NONE;
+      animMapArray[*req.rgbAnim](req);
+    }
+    
+    xSemaphoreGive(*mutexP);
+    *req.isExit=1;
   }
+
+  /**
+   * 任务执行完不让任务自己结束而是等待外部任务来结束
+   * 这样做的好处：
+   * 防止因为任务自己已经结束但外部不知晓的情况下再次调用vTaskDelete()，
+   * 这种情况会导致系统奔溃（在这里翻船，检查了一天）
+   * 免去了在vTaskDelete()之前检查任务的状态，如果任务在结束后等待，那么任务
+   * 必然存在
+   */
+  while(true){vTaskDelay(20 / portTICK_PERIOD_MS);}
 }
 
 char *taskName1="task1";
@@ -836,9 +1016,9 @@ char *taskName2="task2";
 信息只需要填充一次
 */
 void task12(void *param){
-  int n = *((int*)param);
-  int duty=n&1;
-  int taskId=(n>>1)&1;
+  TaskInit *t = (TaskInit *)param;
+  char duty=t->duty;
+  char taskId=t->taskId;
   
   TaskReqInfo req;
   req.taskName=taskId?taskName2:taskName1;
@@ -846,6 +1026,9 @@ void task12(void *param){
   req.ledNum=taskId?rgbConfig.pinBRGBNum:rgbConfig.pinARGBNum;
   req.brightness=&rgbConfig.brightness;
   req.animSpeed=&rgbConfig.animSpeed;
+  req.isDel=&t->isDel;
+  req.isExit=&t->isExit;
+  
   if(duty==0){
     req.rgb=rgbConfig.headRGBSingleColor;
     req.rgbAnim=&rgbConfig.headRGBAnim;
@@ -931,21 +1114,31 @@ void killAndCreateTask(int a,int b){
   
   if(a==0){
     if(task1Handle!=NULL){
+      task1Tmp.isDel=1;
+      while(task1Tmp.isExit==0){delay(5);}
       vTaskDelete(task1Handle);
       task1Handle=NULL;
     }
-    task1Tmp=(a<<1)|b;
-    
+    task1Tmp.taskId=a;
+    task1Tmp.duty=b;
+    task1Tmp.isDel=0;
+    task1Tmp.isExit=1;
+
     xTaskCreatePinnedToCore(task12, 
     "task1",
     4096, 
     (void*)&task1Tmp, 1, &task1Handle, 0);//绑主处理器
   }else{
     if(task2Handle!=NULL){
+      task2Tmp.isDel=1;
+      while(task2Tmp.isExit==0){delay(5);}
       vTaskDelete(task2Handle);
       task2Handle=NULL;
     }
-    task2Tmp=(a<<1)|b;
+    task2Tmp.taskId=a;
+    task2Tmp.duty=b;
+    task2Tmp.isDel=0;
+    task2Tmp.isExit=1;
     
     xTaskCreatePinnedToCore(task12, 
     "task2",
