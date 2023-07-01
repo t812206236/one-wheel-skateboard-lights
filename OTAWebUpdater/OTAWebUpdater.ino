@@ -21,7 +21,8 @@
 #define ANIM_START \
   int animBakup=*req.rgbAnim; \
   int animDelay; \
-  int animBrightness;
+  int animBrightness; \
+  int animWaveBeat;
   
 #define ANIM_LOOP \
   (animBakup==*req.rgbAnim) \
@@ -29,12 +30,34 @@
   && ((*req.isDel)==0)
   
 #define ANIM_DELAY \
-  animDelay=map(*req.animSpeed,0,10,15,100); \
+  animDelay=map(*req.animSpeed,0,10,100,15); \
   vTaskDelay(animDelay / portTICK_PERIOD_MS);
 
 #define ANIM_SETBRIGHTNESS \
   animBrightness=*req.brightness; \
   FastLED.setBrightness(animBrightness*255/100);
+
+#define ANIM_WAVEBEAT \
+  round(map(*req.animSpeed,0,10,20,60));
+
+/**
+ * 渐暗的幅度和循环的频率、每分钟的拍数有关
+ * 拍数是根据指定的动画速度
+ * 循环的频率也必须确定，5ms是个不错的值，速度够快也不会占用过多
+ */
+#define ANIM_WAVEDELAY \
+  vTaskDelay(5 / portTICK_PERIOD_MS);
+
+/**
+ * 60*1000/animWaveBeat 一个周期多久毫秒
+ * /2 半个周期，也就是灯条从头到尾所用的时间
+ * /i 灯珠跑1/i所用的时间
+ * /5 有多少次渐淡的次数
+ * 255除上面的结果就是没轮应该渐淡多少
+ * 理想是灯珠跑一半最开始亮的灯珠从最亮（255）已经暗没了
+ */
+#define ANIM_WAVEFADE(animWaveBeat,i) \
+  round(255/(60*1000/(animWaveBeat)/2/(i)/5))
   
 
 SoftwareSerial vescSerial(UART_READ, UART_SEND);
@@ -115,6 +138,9 @@ void sinWave1(TaskReqInfo req);
 void sinWave2(TaskReqInfo req);
 void sinWave3(TaskReqInfo req);
 
+/**
+ * 要和枚举RGBAnim一一对应
+ */
 void (*animMapArray[])(TaskReqInfo)={
   singleColorApp,
   scanLeftAndRight2CenterApp,
@@ -342,7 +368,7 @@ void handleGetAnimList(){
 
   JsonObject option11 = doc.createNestedObject();
   option11["id"] = ANIM_SINWAVE3;
-  option11["name"] = "三波交叉（固有颜色、频率）";
+  option11["name"] = "三波交叉（固有颜色）";
   
   serializeJson(doc, jsonString);
   server.sendHeader("Content-Type", "application/json");
@@ -537,7 +563,7 @@ void setup(void) {
   leds2=new CRGB[rgbConfig.pinBRGBNum];
   FastLED.addLeds<WS2812B, LED1_GPIO,GRB>(leds1, rgbConfig.pinARGBNum);
   FastLED.addLeds<WS2812B, LED2_GPIO,GRB>(leds2, rgbConfig.pinBRGBNum);
-
+  
   vescSerial.begin(57600);
   xTaskCreatePinnedToCore(task3, "task3",4096,NULL,1,NULL,1);//绑协处理器
 
@@ -577,27 +603,42 @@ TaskInit task2Tmp;
 
 void sinWave3(TaskReqInfo req){
   ANIM_START
+  char animBeatNum;
+  uint8_t sinBeat;
+  uint8_t sinBeat2;
+  uint8_t sinBeat3;
   while(ANIM_LOOP){
-    uint16_t sinBeat   = beatsin16(30, 0, req.ledNum - 1, 0, 0);
-    uint16_t sinBeat2  = beatsin16(30, 0, req.ledNum - 1, 0, 21845);
-    uint16_t sinBeat3  = beatsin16(30, 0, req.ledNum - 1, 0, 43690);
+    animBeatNum=ANIM_WAVEBEAT;
+    
+    sinBeat = beatsin8(animBeatNum, 0, req.ledNum - 1, 0, 0);
+    sinBeat2 = beatsin8(animBeatNum, 0, req.ledNum - 1, 0, \
+      floor(pow(2,8)/3));
+    sinBeat3 = beatsin8(animBeatNum, 0, req.ledNum - 1, 0, \
+      floor(pow(2,8)/3*2));
 
     if(*req.onOff){
       req.leds[sinBeat]   = CRGB::Blue;
       req.leds[sinBeat2]  = CRGB::Red;
       req.leds[sinBeat3]  = CRGB::White;
     }
+    ANIM_SETBRIGHTNESS
     FastLED.show();
-    fadeToBlackBy(req.leds, req.ledNum, 10);
-    vTaskDelay(5 / portTICK_PERIOD_MS);
+    //这个13没什么依据，就是根据调试结果的感觉来的
+    //理论上来说 1/3 够，但是拖尾可能刚消失又被填充了
+    //翻一倍 1/6 能和上一个波分离一半的位置
+    //还要考虑人眼残影的影响，再翻一倍 1/12
+    //还要再考虑前面这些操作所耗用的时间 1/13
+    //哈哈，自圆其说
+    fadeToBlackBy(req.leds, req.ledNum, ANIM_WAVEFADE(animBeatNum,13));
+    ANIM_WAVEDELAY
   }
 }
 
 void sinWave2(TaskReqInfo req){
   ANIM_START
   while(ANIM_LOOP){
-    uint16_t beatA = beatsin8(30, 0, 255);
-    uint16_t beatB = beatsin8(60, 0, 255);
+    uint8_t beatA = beatsin8(30, 0, 255);
+    uint8_t beatB = beatsin8(60, 0, 255);
     if(*req.onOff){
       fill_rainbow(req.leds, req.ledNum, (beatA+beatB)/2, 8);
     }else{
@@ -610,7 +651,6 @@ void sinWave2(TaskReqInfo req){
 }
 
 /**
- * 固定频率
  * 正弦遍历可以让动画更流畅、柔和，比等时间间隔的遍历更好
  * 波形映射示意图如下
  * https://github.com/FastLED/FastLED/wiki/FastLED-Wave-Functions
@@ -620,6 +660,7 @@ void sinWave1(TaskReqInfo req){
   while(ANIM_LOOP){
     uint8_t posBeat = beatsin8(30, 0, req.ledNum - 1, 0, 0);
     uint8_t posBeat2 = beatsin8(60, 0, req.ledNum - 1, 0, 0);
+    
     uint8_t colBeat  = beatsin8(45, 0, 255, 0, 0);
     if(*req.onOff){
       /**
@@ -771,58 +812,22 @@ void crystalglassApp(TaskReqInfo req){
 //乒乓，顾名思义，左边到右边，右边到左边
 void pingpongApp(TaskReqInfo req){
   ANIM_START
-  char tailLen=8;
-  char flag=0;
-  int head=0;
-  int tail=0;
-  char ledNum=req.ledNum;
+  char animBeatNum;
+  uint8_t sinBeat;
   while(ANIM_LOOP){
-
-    //滑动头
-    if(head>=0 && head<ledNum){
-      if(*req.onOff){
-        req.leds[head].r=req.rgb[0];
-        req.leds[head].g=req.rgb[1];
-        req.leds[head].b=req.rgb[2];
-      }else{
-        req.leds[head] = CRGB::Black;
-      }
+    animBeatNum=ANIM_WAVEBEAT;
+    sinBeat=beatsin8(animBeatNum, 0, req.ledNum-1,0,0);
+    if(*req.onOff){
+      req.leds[sinBeat].r=req.rgb[0];
+      req.leds[sinBeat].g=req.rgb[1];
+      req.leds[sinBeat].b=req.rgb[2];
+    }else{
+      req.leds[sinBeat] = CRGB::Black;
     }
-
-    //滑动尾
-    if(abs(head-tail)>=tailLen){
-      req.leds[tail] = CRGB::Black;
-      if(!flag){
-        tail++;
-      }else{
-        tail--;
-      }
-    }
-    
     ANIM_SETBRIGHTNESS
     FastLED.show();
-    ANIM_DELAY
-    
-    if(!flag){
-      head++;
-    }else{
-      head--;
-    }
-
-    if(!flag){
-      if(tail>=ledNum){
-        tail=ledNum-1;
-        head=tail;
-        flag=1;
-      }
-    }else{
-      if(tail<0){
-        tail=0;
-        head=tail;
-        flag=0;
-      }
-    }
-    
+    fadeToBlackBy(req.leds, req.ledNum, ANIM_WAVEFADE(animBeatNum,4));
+    ANIM_WAVEDELAY
   }
 }
 
@@ -976,7 +981,7 @@ void doTask(TaskReqInfo req){
     
     if(!strncmp(req.taskName,"task1",5)){
       mutexP=&mutex1;
-    }else{
+    }else{ //task2
       mutexP=&mutex2;
     }
 
