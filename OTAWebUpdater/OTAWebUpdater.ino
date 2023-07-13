@@ -12,6 +12,8 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 
+#include "Pacifica.h"
+
 
 #define LED1_GPIO 12
 #define LED2_GPIO 13
@@ -53,12 +55,47 @@
  * /2 半个周期，也就是灯条从头到尾所用的时间
  * /i 灯珠跑1/i所用的时间
  * /5 有多少次渐淡的次数
- * 255除上面的结果就是没轮应该渐淡多少
+ * 255除上面的结果就是每轮应该渐淡多少
  * 理想是灯珠跑一半最开始亮的灯珠从最亮（255）已经暗没了
  */
 #define ANIM_WAVEFADE(animWaveBeat,i) \
   round(255/(60*1000/(animWaveBeat)/2/(i)/5))
   
+DEFINE_GRADIENT_PALETTE (heatmap_gp) {
+    0,   0,   0,   0,   //black
+  128, 255,   0,   0,   //red
+  200, 255, 255,   0,   //bright yellow
+  255, 255, 255, 255    //full white 
+};
+DEFINE_GRADIENT_PALETTE( Sunset_Real_gp ) {
+    0, 120,  0,  0,
+   22, 179, 22,  0,
+   51, 255,104,  0,
+   85, 167, 22, 18,
+  135, 100,  0,103,
+  198,  16,  0,130,
+  255,   0,  0,160};
+DEFINE_GRADIENT_PALETTE( greenblue_gp ) { 
+    0,    0,  194,  255,     //light blue
+   46,    3,    0,  246,     //dark blue
+  176,   55,  222,   70,     //bright green
+  255,    0,  194,  255      //light blue
+};
+
+DEFINE_GRADIENT_PALETTE( orangepink_gp ) { 
+    0,  255,  100,    0,     //orange
+   90,  255,    0,  255,     //magenta
+  150,  255,  100,    0,     //orange
+  255,  255,  100,    0      //orange
+};
+
+DEFINE_GRADIENT_PALETTE( browngreen_gp ) { 
+    0,    6,  255,    0,     //green
+   71,    0,  255,  153,     //bluegreen
+  122,  200,  200,  200,     //gray
+  181,  110,   61,    6,     //brown
+  255,    6,  255,    0      //green
+};
 
 SoftwareSerial vescSerial(UART_READ, UART_SEND);
 
@@ -120,10 +157,12 @@ enum RGBAnim{
   ANIM_PINGPONG,
   ANIM_CRYSTALGLASS,
   ANIM_POLICELIGHT,
-  ANIM_RANDOMRAINBOW,
   ANIM_SINWAVE1,
   ANIM_SINWAVE2,
-  ANIM_SINWAVE3
+  ANIM_SINWAVE3,
+  ANIM_PACIFICA,
+  ANIM_STARRYSKY,
+  ANIM_YAKITORI
 };
 
 void singleColorApp(TaskReqInfo req);
@@ -133,10 +172,12 @@ void breathingApp(TaskReqInfo req);
 void pingpongApp(TaskReqInfo req);
 void crystalglassApp(TaskReqInfo req);
 void policeLightApp(TaskReqInfo req);
-void randomRainbowApp(TaskReqInfo req);
-void sinWave1(TaskReqInfo req);
-void sinWave2(TaskReqInfo req);
-void sinWave3(TaskReqInfo req);
+void sinWave1App(TaskReqInfo req);
+void sinWave2App(TaskReqInfo req);
+void sinWave3App(TaskReqInfo req);
+void pacificaApp(TaskReqInfo req);
+void starryskyApp(TaskReqInfo req);
+void yakitoriApp(TaskReqInfo req);
 
 /**
  * 要和枚举RGBAnim一一对应
@@ -149,10 +190,12 @@ void (*animMapArray[])(TaskReqInfo)={
   pingpongApp,
   crystalglassApp,
   policeLightApp,
-  randomRainbowApp,
-  sinWave1,
-  sinWave2,
-  sinWave3
+  sinWave1App,
+  sinWave2App,
+  sinWave3App,
+  pacificaApp,
+  starryskyApp,
+  yakitoriApp
 };
 
 WebServer server(80);
@@ -355,20 +398,28 @@ void handleGetAnimList(){
   option7["name"] = "警闪（固有颜色、频率）";
 
   JsonObject option8 = doc.createNestedObject();
-  option8["id"] = ANIM_RANDOMRAINBOW;
-  option8["name"] = "随机彩虹（固有颜色）";
+  option8["id"] = ANIM_SINWAVE1;
+  option8["name"] = "双波叠加拖尾（固有颜色、频率）";
 
   JsonObject option9 = doc.createNestedObject();
-  option9["id"] = ANIM_SINWAVE1;
-  option9["name"] = "双波叠加拖尾（固有颜色、频率）";
+  option9["id"] = ANIM_SINWAVE2;
+  option9["name"] = "双波叠加彩虹（固有颜色、频率）";
 
   JsonObject option10 = doc.createNestedObject();
-  option10["id"] = ANIM_SINWAVE2;
-  option10["name"] = "双波叠加彩虹（固有颜色、频率）";
+  option10["id"] = ANIM_SINWAVE3;
+  option10["name"] = "三波交叉（固有颜色）";
 
   JsonObject option11 = doc.createNestedObject();
-  option11["id"] = ANIM_SINWAVE3;
-  option11["name"] = "三波交叉（固有颜色）";
+  option11["id"] = ANIM_PACIFICA;
+  option11["name"] = "太平洋（固有颜色、频率）";
+  
+  JsonObject option12 = doc.createNestedObject();
+  option12["id"] = ANIM_STARRYSKY;
+  option12["name"] = "满天星（固有颜色、频率）";
+
+  JsonObject option13 = doc.createNestedObject();
+  option13["id"] = ANIM_YAKITORI;
+  option13["name"] = "串烧（固有颜色）";
   
   serializeJson(doc, jsonString);
   server.sendHeader("Content-Type", "application/json");
@@ -588,10 +639,122 @@ char taskArray[2][2]={0,0,0,0};
 TaskInit task1Tmp;
 TaskInit task2Tmp;
 
-/**
- * 循环模板
- */
+void copystreamApp(TaskReqInfo req){
+  ANIM_START
+  while(ANIM_LOOP){
+    CRGB tmp;
+    tmp.r=req.rgb[0];
+    tmp.g=req.rgb[1];
+    tmp.b=req.rgb[2];
+    CHSV hsv = rgb2hsv_approximate(tmp);
+    hsv.s=random8();
+    hsv.v=random8(100, 255);
+    req.leds[0]=hsv;
 
+    if(*req.onOff){
+      for (int i = req.ledNum - 1; i > 0; i--) {
+        req.leds[i] = req.leds[i - 1];
+      }
+    }else{
+      fill_solid(req.leds,req.ledNum,CRGB::Black);
+    }
+    ANIM_SETBRIGHTNESS
+    FastLED.show();
+    ANIM_DELAY
+  }
+}
+
+void yakitoriApp(TaskReqInfo req){
+  ANIM_START
+  uint8_t colorIndex[req.ledNum];
+  uint8_t whichPalette = 0;
+  CRGBPalette16 currentPalette(greenblue_gp);
+  CRGBPalette16 targetPalette(orangepink_gp);
+  for (int i = 0; i < req.ledNum; i++) {
+    //colorIndex[i] = random8();
+    colorIndex[i] = i;
+  }
+  while(ANIM_LOOP){
+    if(*req.onOff){
+      for (int i = 0; i < req.ledNum; i++) {
+        req.leds[i] = ColorFromPalette(currentPalette, colorIndex[i]);
+      }
+    }else{
+      fill_solid(req.leds,req.ledNum,CRGB::Black);
+    }
+  
+    nblendPaletteTowardPalette( currentPalette, targetPalette, 10 );
+  
+    switch (whichPalette) {
+      case 0:
+        targetPalette = orangepink_gp;
+        break;
+      case 1:
+        targetPalette = browngreen_gp;
+        break;
+       case 2:
+        targetPalette = greenblue_gp;
+        break;
+    }
+  
+    EVERY_N_SECONDS(round(map(*req.animSpeed,0,10,5,1))) {
+      whichPalette++;
+      if (whichPalette > 2) whichPalette = 0;
+    }
+
+    //这里每5ms不用变，变化快慢由ANIM_DELAY决定
+    EVERY_N_MILLISECONDS(5){
+      for (int i = 0; i < req.ledNum; i++) {
+        colorIndex[i]+=1;
+      }
+    }
+    ANIM_SETBRIGHTNESS
+    FastLED.show();
+    ANIM_DELAY
+  }
+}
+
+void sunsetApp(TaskReqInfo req){
+  ANIM_START
+  uint8_t paletteIndex = 0;
+  
+  CRGBPalette16 myPal=Sunset_Real_gp;
+  
+  while(ANIM_LOOP){
+    if(*req.onOff){
+      fill_palette(req.leds, req.ledNum, paletteIndex, \
+        255 / req.ledNum, myPal, 255, LINEARBLEND);
+    }else{
+      fill_solid(req.leds,req.ledNum,CRGB::Black);
+    }
+
+    ANIM_SETBRIGHTNESS
+    FastLED.show();
+    paletteIndex++;
+    ANIM_DELAY
+  }
+}
+
+void heatmapApp(TaskReqInfo req){
+  ANIM_START
+  uint8_t paletteIndex = 0;
+  
+  CRGBPalette16 myPal=heatmap_gp;
+  
+  while(ANIM_LOOP){
+    if(*req.onOff){
+      fill_palette(req.leds, req.ledNum, paletteIndex, \
+        255 / req.ledNum, myPal, 255, LINEARBLEND);
+    }else{
+      fill_solid(req.leds,req.ledNum,CRGB::Black);
+    }
+
+    ANIM_SETBRIGHTNESS
+    FastLED.show();
+    paletteIndex++;
+    ANIM_DELAY
+  }
+}
 
 /**
  * 搞一个雨滴
@@ -600,8 +763,129 @@ TaskInit task2Tmp;
  * 随机颜色
  */
 
+void starryskyApp(TaskReqInfo req){
+  ANIM_START
+  uint8_t paletteIndex = 0;
 
-void sinWave3(TaskReqInfo req){
+  CRGBPalette16 purplePalette = CRGBPalette16 (
+      CRGB::DarkViolet,
+      CRGB::DarkViolet,
+      CRGB::DarkViolet,
+      CRGB::DarkViolet,
+      
+      CRGB::Magenta,
+      CRGB::Magenta,
+      CRGB::Linen,
+      CRGB::Linen,
+      
+      CRGB::Magenta,
+      CRGB::Magenta,
+      CRGB::DarkViolet,
+      CRGB::DarkViolet,
+  
+      CRGB::DarkViolet,
+      CRGB::DarkViolet,
+      CRGB::Linen,
+      CRGB::Linen
+  );
+
+  CRGBPalette16 myPal = purplePalette;
+
+  while(ANIM_LOOP){
+    EVERY_N_MILLISECONDS(80){
+      /**
+       * Switch on an LED at random, choosing a random
+       * color from the palette
+       */
+       if(*req.onOff){
+          req.leds[random8(0, req.ledNum - 1)] = \
+            ColorFromPalette(myPal, random8(), 255, LINEARBLEND);
+       }
+    }
+
+    // Fade all LEDs down by 1 in brightness each time this is called
+    fadeToBlackBy(req.leds, req.ledNum, 5);
+    
+    ANIM_SETBRIGHTNESS
+    FastLED.show();
+    vTaskDelay(5 / portTICK_PERIOD_MS);
+  }
+}
+
+/**
+ * 波光粼粼的海洋，安静美好的流淌
+ * "Pacifica"
+ *  Gentle, blue-green ocean waves 
+ *  made by Mark Kriegsman and Mary Corey March.
+ */
+void pacificaApp(TaskReqInfo req){
+  ANIM_START
+  Pacifica pacifica = Pacifica(req.leds,req.ledNum);
+  while(ANIM_LOOP){
+    if(*req.onOff){
+      pacifica.runPattern();
+    }else{
+      fill_solid(req.leds,req.ledNum,CRGB::Black);
+    }
+    ANIM_SETBRIGHTNESS
+    FastLED.show();
+    vTaskDelay(5 / portTICK_PERIOD_MS);
+  }
+}
+
+/**
+ * 火焰的效果说实话很差，就算是告诉你这是火焰效果你也看不出来。。。
+ * 原作者可能是这位
+ * https://www.youtube.com/watch?v=A2uNu-TyBQQ
+ */
+void fireApp(TaskReqInfo req){
+  ANIM_START
+  
+  uint8_t cooling = 55;
+  uint8_t sparking = 120;
+  bool gReverseDirection = false;
+
+  byte heat[req.ledNum];
+  
+  while(ANIM_LOOP){
+    vTaskDelay(30 / portTICK_PERIOD_MS);
+    if(!(random8() > 150)) {
+      continue;
+    }
+    
+    // Step 1.  Cool down every cell a little
+    for( int i = 0; i < req.ledNum; i++) {
+      heat[i] = qsub8( heat[i],  random8(0, ((cooling * 10) / req.ledNum) + 2));
+    }
+
+    // Step 2.  Heat from each cell drifts 'up' and diffuses a little
+    for( int k= req.ledNum - 1; k >= 2; k--) {
+      heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2] ) / 3;
+    }
+  
+    // Step 3.  Randomly ignite new 'sparks' of heat near the bottom
+    if( random8() < sparking ) {
+      int y = random8(7);
+      heat[y] = qadd8( heat[y], random8(160,255) );
+    }
+
+    // Step 4.  Map from heat cells to LED colors
+    for( int j = 0; j < req.ledNum; j++) {
+      CRGB color = HeatColor( heat[j]);
+      int pixelnumber;
+      if( gReverseDirection ) {
+        pixelnumber = (req.ledNum-1) - j;
+      } else {
+        pixelnumber = j;
+      }
+      req.leds[pixelnumber] = color;
+    }
+    ANIM_SETBRIGHTNESS
+    FastLED.show();
+  }
+}
+
+void sinWave3App(TaskReqInfo req){
   ANIM_START
   char animBeatNum;
   uint8_t sinBeat;
@@ -634,7 +918,7 @@ void sinWave3(TaskReqInfo req){
   }
 }
 
-void sinWave2(TaskReqInfo req){
+void sinWave2App(TaskReqInfo req){
   ANIM_START
   while(ANIM_LOOP){
     uint8_t beatA = beatsin8(30, 0, 255);
@@ -655,7 +939,7 @@ void sinWave2(TaskReqInfo req){
  * 波形映射示意图如下
  * https://github.com/FastLED/FastLED/wiki/FastLED-Wave-Functions
  */
-void sinWave1(TaskReqInfo req){
+void sinWave1App(TaskReqInfo req){
   ANIM_START
   while(ANIM_LOOP){
     uint8_t posBeat = beatsin8(30, 0, req.ledNum - 1, 0, 0);
@@ -942,7 +1226,7 @@ void singleColorApp(TaskReqInfo req){
     ANIM_SETBRIGHTNESS
     FastLED.show();
     //不属于动画，不需要频繁刷新
-    vTaskDelay(500 / portTICK_PERIOD_MS);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
   }
 }
 
@@ -955,7 +1239,7 @@ void blankApp(TaskReqInfo req){
     }
     FastLED.show();
     //不属于动画，不需要频繁刷新
-    vTaskDelay(500 / portTICK_PERIOD_MS);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
   }
 }
 
